@@ -84,11 +84,14 @@ sub run_command {
 
     if (( not defined( $action )) or ( $action == $STDOUT_ONLY )) {
         # throw away stderr
+        dprint( "${i_am}: throwing away stderr" ) ;
         @${stdout_ref} = `$command 2>/dev/null` ;
     } elsif ( $action == $STDIN_AND_STDOUT_TOGETHER ) {
         # collect both stdout and stderr
+        dprint( "${i_am}: collecting stdout and stderr together" ) ;
         @${stdout_ref} = `$command 2>&1` ;
     } elsif ( $action == $STDIN_AND_STDOUT_SEPARATE ) {
+        dprint( "${i_am}: separating stdout and stderr" ) ;
         my $fd ;
         open( $fd, "( $command | sed 's/^/STDOUT:/' ) 2>&1 |" ) ;
 

@@ -8,14 +8,20 @@ use warnings ;
 
 my @output = () ;
 my @errors = () ;
-# my $command = "sleep 25" ;
-my $command = "./want-error.plx" ;
+
+my $command = $ARGV[0] ;
+if ( not defined( $command )) {
+    print "command: " ;
+    $command = <> ;
+}
+
+
 my %options = (
     'sleep'     => 3,   
-    'stderr'    => 2,
+    'stderr'    => 1,
 ) ;
 
-Moxad::Rcommand::set_debug(1) ;     # turn on debugging
+Moxad::Rcommand::set_debug(0) ;     # turn on debugging
 Moxad::Rcommand::set_debug_fd(2) ;  # send debug output to stderr
 
 my $count = 0 ;

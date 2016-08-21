@@ -20,9 +20,8 @@ STDERR.
 ***run_command_wait()*** is used when you are calling a program known to be unstable
 that could potentially hang, and it is vital that your program does not hang.  This
 forks off a child process to run the command, while a ALARM signal is set up to
-signal after some number of seconds (which can be changed).  The parent can check 
-the return status to see if the child finished normally, or if it didn't, any
-error messages are returned.
+signal after some number of seconds (which can be changed).  It leverages off off the
+function run_command() which allows you to control how stderr is handled.
 
 ***set_debug()*** is used to get debugging output from the module.
 
@@ -41,7 +40,8 @@ error messages are returned.
     my @errors = () ;
     my $command = "sleep 25" ;
     my %options = (
-        'sleep' => 5,   
+        'sleep' => 3,   # seconds
+        'stderr => 2,   # separate stdout and stderr
     ) ;
     
     Moxad::Rcommand::set_debug(1) ;     # turn on debugging
@@ -61,10 +61,12 @@ error messages are returned.
     exit 0 ;
 
 ## Output from code example
-    Debug: Moxad::Rcommand::run_command_wait: sleep timer set to 5 seconds
-    Debug: Moxad::Rcommand::run_command_wait: I am parent (11761), child = 11762
-    Debug: Moxad::Rcommand::run_command_wait: I am child (11762): parent = 11761
-    Debug: Moxad::Rcommand::run_command_wait: child(11762): doing exec of 'sleep 25'
-    Debug: Moxad::Rcommand::run_command_wait: Got a timeout after 5 seconds for PID 11762. Command: 'sleep 25'
-    Debug: Moxad::Rcommand::run_command_wait: Sent sigHUP to PID 11762
-    Error: Moxad::Rcommand::run_command_wait: Got a timeout after 5 seconds for PID 11762. Command: 'sleep 25'
+    debug: Moxad::Rcommand::run_command_wait: got an options hash
+    debug: Moxad::Rcommand::run_command_wait: stderr value set to 2
+    debug: Moxad::Rcommand::run_command_wait: sleep timer set to 3 seconds
+    debug: Moxad::Rcommand::run_command_wait: I am parent (18937), child = 18938
+    debug: Moxad::Rcommand::run_command_wait: I am child (18938): parent = 18937
+    debug: Moxad::Rcommand::run_command_wait: child(18938): running command of 'sleep 25'
+    debug: Moxad::Rcommand::run_command_wait: Got a timeout after 3 seconds for PID 18938. Command: 'sleep 25'
+    debug: Moxad::Rcommand::run_command_wait: Sent sigHUP to PID 18938
+    Error: Moxad::Rcommand::run_command_wait: Got a timeout after 3 seconds for PID 18938. Command: 'sleep 25'

@@ -11,6 +11,7 @@ my @errors = () ;
 my $command = "sleep 25" ;
 my %options = (
     'sleep' => 3,   
+    'stderr => 2,       # separate stdout and stderr
 ) ;
 
 Moxad::Rcommand::set_debug(1) ;     # turn on debugging
