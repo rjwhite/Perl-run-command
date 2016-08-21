@@ -9,8 +9,8 @@ package Moxad::Rcommand ;
 
 use strict ;
 use warnings ;
-use version ; our $VERSION = qv('0.0.1') ;
-use POSIX ":sys_wait_h";
+use version ; our $VERSION = qv('0.0.2') ;
+use POSIX ":sys_wait_h" ;
 
 use Exporter ;
 our @ISA = qw( Exporter ) ;
@@ -22,9 +22,16 @@ our @EXPORT_OK = qw( run_command run_command_wait
                   set_debug set_debug_fd ) ;
                   
 
+# we make these available to callers
 our $STDOUT_ONLY               = 0 ;
 our $STDIN_AND_STDOUT_TOGETHER = 1 ;
 our $STDIN_AND_STDOUT_SEPARATE = 2 ;
+
+# The child process for run_command_wait() tags lines passed back
+# to the parent to let it know what type of info it really is
+my $PREFIX_STDOUT = "stdout: " ;
+my $PREFIX_STDERR = "stderr: " ;
+my $PREFIX_DEBUG  = "debug: " ;
 
 # globals
 my $G_dbg_flag = 0 ;        # set by set_debug()
@@ -39,7 +46,7 @@ my $G_dbg_fd   = 1 ;        # stdout
 #
 # Arguments:
 #   1:  action:
-#       0 or undefined - stdout only
+#       0 - stdout only
 #       1 - return stdout and stderr in output array
 #       2 - separate stdout and stderr between output and error arrays
 #   2:  command to run
@@ -115,10 +122,10 @@ sub run_command {
 #   2:  reference to array of output (both stdout and stderr combined)
 #   3:  reference to array of errors
 #   4:  optional reference to options hash
-#           sleep = number
+#           sleep  = number
+#           stderr = undef | 0 | 1 | 2    - see run_command() action
 # Returns (parent):
-#   0:  ok
-#   1:  not-ok
+#   number of lines sent to stderr
 # Globals:
 #   $G_dbg_flag
 
@@ -157,6 +164,7 @@ sub run_command_wait {
 
         # how to handle stderr
         # let run_command() deal with an invalid numeric value
+        # just check here that it is a single digit, if so, use it
         $val = ${$options_ref}{ 'stderr' } ;
         if ( defined( $val ) and ( $val =~ /^\d$/ )) {
             $stderr = $val ;
@@ -174,7 +182,7 @@ sub run_command_wait {
     local $SIG{ CHLD } = sub {
         # don't change $! and $? outside handler
         local ($!, $?);
-        while (( my $pid = waitpid(-1, WNOHANG)) > 0) {
+        while (( my $pid = waitpid( -1, WNOHANG )) > 0 ) {
             last if ( $pid == -1 ) ;
             delete( $children{ $pid } ) if ( defined ( $children{ $pid } )) ;
         }
@@ -201,15 +209,15 @@ sub run_command_wait {
 
             # anything that comes back should be tagged
             while ( my $line = <READER> ) {
-                if ( $line =~ /^stdout: / ) {
-                    $line =~ s/^stdout: // ;
+                if ( $line =~ /^$PREFIX_STDOUT/ ) {
+                    $line =~ s/^$PREFIX_STDOUT// ;
                     push( @{$output_ref}, $line ) ;
                     $num_lines++ ;
-                } elsif ( $line =~ /^stderr: / ) {
-                    $line =~ s/^stderr: // ;
+                } elsif ( $line =~ /^$PREFIX_STDERR/ ) {
+                    $line =~ s/^$PREFIX_STDERR// ;
                     push( @{$error_ref}, $line ) ;
                     $num_errs++ ;
-                } elsif ( $line =~ /^debug: / ) {
+                } elsif ( $line =~ /^$PREFIX_DEBUG/ ) {
                     if ( $G_dbg_fd == 2 ) {     # stderr hack. see dprint()
                         print STDERR "$line" ;
                     } else {
@@ -228,21 +236,24 @@ sub run_command_wait {
         if ( $@ ) {
             if ( $@ ne "alarm\n" ) {
                 push( @{$error_ref}, "$i_am: got unexpected sigALARM: $@" ) ;
-                return(1) ;
+                $num_errs++ ;
+                return( $num_errs ) ;
             }
+
             # timed out
             my $msg = "Got a timeout after $sleep seconds for PID $child. " .
                 "Command: \'$cmd\'" ;
             dprint( "${i_am}: ${msg}" ) ;
             push( @{$error_ref}, "$i_am: $msg" ) ;
+            $num_errs++ ;
 
             kill( 'HUP', $child  );
-
             dprint( "${i_am}: Sent sigHUP to PID $child" ) ;
-            return(1) ;
+
+            return( $num_errs ) ;
         }
 
-        dprint( "${i_am}: parent: \# stderr = $num_errs, \# stdout = $num_lines" ) ;
+        dprint( "${i_am}: parent: \#stderr = $num_errs, \#stdout = $num_lines" ) ;
         return( $num_errs ) ;
     } else {
         # I am the child 
@@ -262,28 +273,21 @@ sub run_command_wait {
         my @errors = () ;
         my $ret = run_command( $stderr, $cmd, \@output, \@errors ) ;
 
-        my $xxx1 = @output ;
-        my $xxx2 = @errors ;
-        dprint( "${i_am}: child($$): $xxx1 STDOUT and $xxx2 STDERR" ) ;
-
         # we need a sure way to let the parent know whether it is
-        # intended for stderr or stdout
+        # intended for stderr or stdout - so tag what we send back
 
-        if ( @errors ) {
-            # a separate STDERR had to have been set if errors returned
-            
-            dprint( "${i_am}: child($$): got some stderr lines" ) ;
-            foreach my $err ( @errors ) {
-                chomp( $err ) ;
-                # tag it as an error for the parent to notice
-                print "stderr: $err\n" ;   # really going through pipe
-            }
+        dprint( "${i_am}: child($$): got some stderr lines" ) if ( @errors ) ;
+        foreach my $err ( @errors ) {
+            chomp( $err ) ;
+            # tag it as an error for the parent to notice
+            print "${PREFIX_STDERR}${err}\n" ;   # really going through pipe
         }
+
         # normal stdout
         foreach my $line ( @output ) {
             chomp( $line ) ;
             # tag it as meant for stdout
-            print "stdout: $line\n" ;      # really going to pipe
+            print "${PREFIX_STDOUT}${line}\n" ;  # really going to pipe
         }
         exit(0) ;
     }
@@ -310,6 +314,7 @@ sub set_debug {
     }
     return( $old_value ) ;
 }
+
 
 # set where debugging output set to
 # anything other than value of 2 (sdterr) will be considered stdout
@@ -343,10 +348,11 @@ sub dprint {
 
     return(0) if ( ! $G_dbg_flag ) ;
 
+    my $str = "${PREFIX_DEBUG}$msg\n" ;
     if ( $G_dbg_fd == 2 ) {
-        print STDERR "debug: $msg\n" ;
+        print STDERR $str ;
     } else {
-        print "debug: $msg\n" ;
+        print $str ;
     }
     return(0) ;
 }
