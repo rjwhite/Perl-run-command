@@ -128,9 +128,12 @@ sub run_command_wait {
     my $error_ref   = shift ;
     my $options_ref = shift ;
 
-    my $sleep    = 10 ;
-    my %children = () ;
-    my $i_am     = (caller(0))[3];
+    my $sleep       = 10 ;
+    my %children    = () ;
+    my $i_am        = (caller(0))[3];
+    my $num_errs    = 0 ;
+    my $num_lines   = 0 ;
+    my $stderr      = undef ;
 
     # argument checking
     if (( not defined( $cmd )) or ( $cmd eq "" )) {
@@ -145,9 +148,19 @@ sub run_command_wait {
 
     # check for any options
     if ( defined( $options_ref ) and ( ref( $options_ref ) eq "HASH" )) {
+        dprint( "${i_am}: got an options hash" ) ;
+        # sleep timer
         my $val = ${$options_ref}{ 'sleep' } ;
         if ( defined( $val ) and ( $val =~ /^\d+$/ )) {
             $sleep = $val ;
+        }
+
+        # how to handle stderr
+        # let run_command() deal with an invalid numeric value
+        $val = ${$options_ref}{ 'stderr' } ;
+        if ( defined( $val ) and ( $val =~ /^\d$/ )) {
+            $stderr = $val ;
+            dprint( "${i_am}: stderr value set to $val" ) ;
         }
     }
     dprint( "${i_am}: sleep timer set to $sleep seconds" ) ;
@@ -181,13 +194,35 @@ sub run_command_wait {
         $children{ $child } = 1 ;
         close( WRITER ) ;
 
-        # set up our timeout
         eval {
+            # set up our timeout
             local $SIG{ALRM} = sub { die "alarm\n" };  # \n required
             alarm( $sleep ) ;
-            while ( <READER> ) {
-                push( @{$output_ref}, $_ ) ;
+
+            # anything that comes back should be tagged
+            while ( my $line = <READER> ) {
+                if ( $line =~ /^stdout: / ) {
+                    $line =~ s/^stdout: // ;
+                    push( @{$output_ref}, $line ) ;
+                    $num_lines++ ;
+                } elsif ( $line =~ /^stderr: / ) {
+                    $line =~ s/^stderr: // ;
+                    push( @{$error_ref}, $line ) ;
+                    $num_errs++ ;
+                } elsif ( $line =~ /^debug: / ) {
+                    if ( $G_dbg_fd == 2 ) {     # stderr hack. see dprint()
+                        print STDERR "$line" ;
+                    } else {
+                        print "$line" ;     # just print it
+                    }
+                } else {
+                    # must be an error - like a die() from run_command()
+                    push( @{$error_ref}, "$line"  ) ;
+                    $num_errs++ ;
+                    return( $num_errs ) ;
+                }
             }
+
             alarm(0) ;  # clear alarm
         };
         if ( $@ ) {
@@ -207,14 +242,13 @@ sub run_command_wait {
             return(1) ;
         }
 
-        dprint( "${i_am}: parent: DONE ok" ) ;
-        return(0) ;
-
+        dprint( "${i_am}: parent: \# stderr = $num_errs, \# stdout = $num_lines" ) ;
+        return( $num_errs ) ;
     } else {
         # I am the child 
         my $parent = getppid() ;
         dprint( "${i_am}: I am child ($$): parent = $parent" ) ;
-        dprint( "${i_am}: child($$): doing exec of \'$cmd\'" ) ;
+        dprint( "${i_am}: child($$): running command of \'$cmd\'" ) ;
 
         # We want STDIN and STDERR to go to the pipe
         close READER ;
@@ -224,8 +258,34 @@ sub run_command_wait {
         select STDOUT; $| = 1 ;  # make unbuffered
         select STDERR; $| = 1 ;
 
-        exec( $cmd ) or die( "$i_am: exec failed for \'$cmd\'\n" ) ;
-        # we don't return from this.
+        my @output = () ;
+        my @errors = () ;
+        my $ret = run_command( $stderr, $cmd, \@output, \@errors ) ;
+
+        my $xxx1 = @output ;
+        my $xxx2 = @errors ;
+        dprint( "${i_am}: child($$): $xxx1 STDOUT and $xxx2 STDERR" ) ;
+
+        # we need a sure way to let the parent know whether it is
+        # intended for stderr or stdout
+
+        if ( @errors ) {
+            # a separate STDERR had to have been set if errors returned
+            
+            dprint( "${i_am}: child($$): got some stderr lines" ) ;
+            foreach my $err ( @errors ) {
+                chomp( $err ) ;
+                # tag it as an error for the parent to notice
+                print "stderr: $err\n" ;   # really going through pipe
+            }
+        }
+        # normal stdout
+        foreach my $line ( @output ) {
+            chomp( $line ) ;
+            # tag it as meant for stdout
+            print "stdout: $line\n" ;      # really going to pipe
+        }
+        exit(0) ;
     }
 }
 
@@ -284,9 +344,9 @@ sub dprint {
     return(0) if ( ! $G_dbg_flag ) ;
 
     if ( $G_dbg_fd == 2 ) {
-        print STDERR "Debug: $msg\n" ;
+        print STDERR "debug: $msg\n" ;
     } else {
-        print "Debug: $msg\n" ;
+        print "debug: $msg\n" ;
     }
     return(0) ;
 }
