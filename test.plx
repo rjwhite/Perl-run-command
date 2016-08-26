@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # Force a early ALARM termination
 
-#  XXX use lib "/usr/local/lib" ;
+use lib "/usr/local/lib" ;
 use Moxad::Rcommand qw( run_command_wait ) ;
 use strict ;
 use warnings ;
@@ -15,9 +15,8 @@ if ( not defined( $command )) {
     $command = <> ;
 }
 
-
 my %options = (
-    'sleep'     => 3,   
+    'alarm'     => 3,   
     'stderr'    => 1,
 ) ;
 
@@ -33,12 +32,8 @@ foreach my $line ( @output ) {
     chomp( $line ) ;
     print "Output: $line\n" ;
 }
-
-if ( $errs ) {
-    foreach my $line ( @errors ) {
-        chomp( $line ) ;
-        print "Error: $line\n" ;
-    }
+foreach my $line ( @errors ) {
+    chomp( $line ) ;
+    print "Error: $line\n" ;
 }
-
 exit 0 ;
