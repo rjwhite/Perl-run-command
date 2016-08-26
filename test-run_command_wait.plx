@@ -1,8 +1,8 @@
 #!/usr/bin/env perl
-# Force a early ALARM termination
+# Force an early ALARM termination
 
 use lib "/usr/local/lib" ;
-use Moxad::Rcommand qw( run_command_wait ) ;
+use Moxad::Rcommand qw( run_command_wait $STDIN_AND_STDOUT_SEPARATE ) ;
 use strict ;
 use warnings ;
 
@@ -10,8 +10,8 @@ my @output = () ;
 my @errors = () ;
 my $command = "sleep 25" ;
 my %options = (
-    'sleep' => 3,   
-    'stderr => 2,       # separate stdout and stderr
+    'alarm'  => 3,   
+    'stderr' => $STDIN_AND_STDOUT_SEPARATE,
 ) ;
 
 Moxad::Rcommand::set_debug(1) ;     # turn on debugging
@@ -26,7 +26,7 @@ my $errs = run_command_wait(
 if ( $errs ) {
     foreach my $line ( @errors ) {
         chomp( $line ) ;
-        print "Error: $line\n" ;
+        print STDERR "Error: $line\n" ;
     }
 }
 exit 0 ;

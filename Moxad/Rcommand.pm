@@ -1,6 +1,6 @@
 # routines to run an external command
 #   run_command      - handle stdin/stderr in different ways
-#   run_command_wait - run a command with sleep ALARM timer in case of hang
+#   run_command_wait - run a command with ALARM timer in case of hang
 #   set_debug        - turn debug on or off
 #   set_debug_fd     - set where to send debug out to (stdout or stderr)
 
@@ -34,9 +34,10 @@ my $PREFIX_STDERR = "stderr: " ;
 my $PREFIX_DEBUG  = "debug: " ;
 
 # globals
-my $G_dbg_flag = 0 ;        # set by set_debug()
-my $G_dbg_fd   = 1 ;        # stdout
+my $G_dbg_flag    = 0 ;     # set by set_debug()
+my $G_dbg_fd      = 1 ;     # stdout
 
+my $DEFAULT_TIMER = 30 ;    # timer for run_command_wait()
 
 # Run a external command 
 # handle stdout and stderr depending on action argument.
@@ -82,6 +83,8 @@ sub run_command {
         }
     }
 
+    dprint( "${i_am}: command = $command" ) ;
+
     if (( not defined( $action )) or ( $action == $STDOUT_ONLY )) {
         # throw away stderr
         dprint( "${i_am}: throwing away stderr" ) ;
@@ -125,7 +128,7 @@ sub run_command {
 #   2:  reference to array of output (both stdout and stderr combined)
 #   3:  reference to array of errors
 #   4:  optional reference to options hash
-#           sleep  = number
+#           alarm = number
 #           stderr = undef | 0 | 1 | 2    - see run_command() action
 # Returns (parent):
 #   number of lines sent to stderr
@@ -138,7 +141,7 @@ sub run_command_wait {
     my $error_ref   = shift ;
     my $options_ref = shift ;
 
-    my $sleep       = 10 ;
+    my $alarm = $DEFAULT_TIMER ;
     my %children    = () ;
     my $i_am        = (caller(0))[3];
     my $num_errs    = 0 ;
@@ -160,9 +163,9 @@ sub run_command_wait {
     if ( defined( $options_ref ) and ( ref( $options_ref ) eq "HASH" )) {
         dprint( "${i_am}: got an options hash" ) ;
         # sleep timer
-        my $val = ${$options_ref}{ 'sleep' } ;
+        my $val = ${$options_ref}{ 'alarm' } ;
         if ( defined( $val ) and ( $val =~ /^\d+$/ )) {
-            $sleep = $val ;
+            $alarm = $val ;
         }
 
         # how to handle stderr
@@ -174,7 +177,7 @@ sub run_command_wait {
             dprint( "${i_am}: stderr value set to $val" ) ;
         }
     }
-    dprint( "${i_am}: sleep timer set to $sleep seconds" ) ;
+    dprint( "${i_am}: alarm timer set to $alarm seconds" ) ;
     
     # set up a pipe
     if ( ! pipe( READER, WRITER )) {
@@ -208,7 +211,7 @@ sub run_command_wait {
         eval {
             # set up our timeout
             local $SIG{ALRM} = sub { die "alarm\n" };  # \n required
-            alarm( $sleep ) ;
+            alarm( $alarm ) ;
 
             # anything that comes back should be tagged
             while ( my $line = <READER> ) {
@@ -244,8 +247,7 @@ sub run_command_wait {
             }
 
             # timed out
-            my $msg = "Got a timeout after $sleep seconds for PID $child. " .
-                "Command: \'$cmd\'" ;
+            my $msg = "Got a timeout after $alarm seconds for PID $child." ;
             dprint( "${i_am}: ${msg}" ) ;
             push( @{$error_ref}, "$i_am: $msg" ) ;
             $num_errs++ ;
@@ -299,7 +301,7 @@ sub run_command_wait {
 
 # turn debugging for the module on or off
 # Arguments:
-#   1:  non-0 or case-insensitive 'yes' will turn on
+#   1:  integer  (0=off, non-0= on)
 # Returns:
 #   old value
 # Globals:
@@ -312,8 +314,6 @@ sub set_debug {
 
     if ( $flag =~ /^\d$/ ) {
         $G_dbg_flag = $flag ;
-    } else {
-        $G_dbg_flag = 1 if ( $flag =~ /^yes$/i ) ;
     }
     return( $old_value ) ;
 }
@@ -340,7 +340,7 @@ sub set_debug_fd {
     } else {
         $G_dbg_fd = 1 ;     
     }
-    return( $G_dbg_fd ) ;
+    return( $old_value ) ;
 }
 
 
@@ -361,3 +361,119 @@ sub dprint {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Moxad::Rcommand - run a shell command
+
+=head1 SYNOPSIS
+
+use Moxad::Rcommand ;
+
+=head1 DESCRIPTION
+
+This module is a set of non-OOP functions that run a shell command.
+
+One function, run_command(), allows you to better control how
+any output to stderr is handled, whether it is ignored, combined
+with stdout, or separated from stdout.
+
+Another function, run_command_wait(), allows you to specify a
+sleep timer to kill the command if it becomes hung.  This would be
+used for a command or program that is considered unstable when
+it is vital that your program does not hang.  It leverages off of
+the function run_command() to still provide control over stderr.
+
+=head1 functions
+
+=head2 set_debug
+
+Turn debugging on or off
+
+ $old_value = Moxad::Rcommand->set_debug(0) ;   # off (default)
+ $old_value = Moxad::Rcommand->set_debug(1) ;   # on
+
+=head2 set_debug_fd
+
+Set where debugging info is send (stdout or stderr)
+
+ $old_value = Moxad::Rcommand::set_debug_fd(1) ;   # stdout
+ $old_value = Moxad::Rcommand::set_debug_fd(2) ;   # stderr
+
+=head2 run_command
+
+run a shell command
+
+ $num_errs = Moxad::Rcommand::run_command( $action, $command, \@stdout, \@stderr ) ;
+
+where $action is one of:
+    $STDOUT_ONLY (0)
+    $STDIN_AND_STDOUT_TOGETHER (1)
+    $STDIN_AND_STDOUT_SEPARATE (2)
+    undef - default = 2 ($STDIN_AND_STDOUT_SEPARATE)
+
+and $num_errs is the number of lines that are returned in the @stderr
+array - which only happens if $action is $STDIN_AND_STDOUT_SEPARATE,
+or if some other error occurred.
+
+=head2 run_command_wait
+
+run a shell command with a timer to stop(kill) the command.
+
+ $num_errs = Moxad::Rcommand::run_command_wait( $command, \@stdout, \@stderr, \%options ) ;
+
+where \%options has the following options:
+    alarm = number (default = 30 seconds)
+    stderr = undef | 0 | 1 | 2 - see $action for run_command()
+
+and $num_errs is the number of lines that are returned in the @stderr
+array - which only happens if $action is $STDIN_AND_STDOUT_SEPARATE,
+or if some other error occurred.
+
+=head1 Code sample
+
+  #!/usr/bin/env perl
+  # Force a early ALARM termination
+  
+  use Moxad::Rcommand qw( run_command_wait $STDIN_AND_STDOUT_SEPARATE ) ;
+  use strict ;
+  use warnings ;
+  
+  my @output = () ;
+  my @errors = () ;
+  my $command = "sleep 25" ;
+  my %options = (
+      'alarm'  => 3,     # seconds
+      'stderr' => $STDIN_AND_STDOUT_SEPARATE,
+  ) ;
+  
+  Moxad::Rcommand::set_debug(1) ;     # turn on debugging
+  Moxad::Rcommand::set_debug_fd(2) ;  # send debug output to stderr
+  
+  my $errs = run_command_wait(
+      $command, \@output, \@errors, \%options
+  ) ;
+  
+  # no output in this (sleep) example - so ignore @output
+  if ( $errs ) {
+      foreach my $line ( @errors ) {
+          chomp( $line ) ;
+          print STDERR "Error: $line\n" ;
+      }
+  }
+
+=head1 sample output with debugging turned on
+
+  debug: Moxad::Rcommand::run_command_wait: got an options hash
+  debug: Moxad::Rcommand::run_command_wait: stderr value set to 2
+  debug: Moxad::Rcommand::run_command_wait: alarm timer set to 3 seconds
+  debug: Moxad::Rcommand::run_command_wait: I am parent (32764), child = 32765
+  debug: Moxad::Rcommand::run_command_wait: I am child (32765): parent = 32764
+  debug: Moxad::Rcommand::run_command_wait: child(32765): running command of 'sleep 25'
+  debug: Moxad::Rcommand::run_command: command = sleep 25
+  debug: Moxad::Rcommand::run_command: separating stdout and stderr
+  debug: Moxad::Rcommand::run_command_wait: Got a timeout after 3 seconds for PID 32765.
+  debug: Moxad::Rcommand::run_command_wait: Sent sigHUP to PID 32765
+  Error: Moxad::Rcommand::run_command_wait: Got a timeout after 3 seconds for PID 32765.
