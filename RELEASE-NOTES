@@ -1,6 +1,9 @@
 0.0.1       Aug 15, 2016
     - initial version
-0.0.2       Aug 21, 2016
+
+0.0.2       Aug 26, 2016
     - run_command_wait() now leverages off of run_command()
       so that stderr can be controlled as well.
     - lots of refactoring
+    - perldoc
+    - test programs moved to test-progs/
