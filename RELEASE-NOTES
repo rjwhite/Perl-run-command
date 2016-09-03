@@ -7,3 +7,10 @@
     - lots of refactoring
     - perldoc
     - test programs moved to test-progs/
+
+0.0.2.1     Sep 3, 2016
+    - don't throw away newlines when ignoring stderr.
+      was causing inconsistent behavior between newline handling with
+      different actions of stderr
+    - created a test-progs/errors.plx program to now be called by
+      test-progs/test-run_command.plx
