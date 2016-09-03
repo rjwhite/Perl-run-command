@@ -99,7 +99,6 @@ sub run_command {
         open( $fd, "( $command | sed 's/^/STDOUT:/' ) 2>&1 |" ) ;
 
         while ( my $line = <$fd> ) {
-            chomp( $line ) ;
             if ( $line =~ s/^STDOUT:// )  {
                 push( @{$stdout_ref}, $line ) ;
             } else {

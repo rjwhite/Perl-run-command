@@ -8,7 +8,7 @@ use warnings ;
 my @output = () ;
 my @errors = () ;
 my $action = $STDIN_AND_STDOUT_SEPARATE ;
-my $command = "who" ;
+my $command = "./errors.plx" ;
 
 my $errs = run_command( $action, $command, \@output, \@errors ) ;
 print "Num errs = $errs\n\n" ;
