@@ -96,7 +96,9 @@ sub run_command {
     } elsif ( $action == $STDIN_AND_STDOUT_SEPARATE ) {
         dprint( "${i_am}: separating stdout and stderr" ) ;
         my $fd ;
-        open( $fd, "( $command | sed 's/^/STDOUT:/' ) 2>&1 |" ) ;
+        # note the internal sub-shell.  This is in case the user
+        # provides multiple commands such as "echo blah ; date"
+        open( $fd, "( \( $command \) | sed 's/^/STDOUT:/' ) 2>&1 |" ) ;
 
         while ( my $line = <$fd> ) {
             if ( $line =~ s/^STDOUT:// )  {

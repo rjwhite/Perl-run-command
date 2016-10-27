@@ -14,3 +14,8 @@
       different actions of stderr
     - created a test-progs/errors.plx program to now be called by
       test-progs/test-run_command.plx
+
+0.0.2.2     Oct 27, 2016
+    - a sub-shell added (within the sub-shell) when stderr and stdout
+      are separated.  This is in case the user provides multiple
+      commands on the same line such as "echo blah ; date"
