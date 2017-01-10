@@ -142,7 +142,7 @@ sub run_command_wait {
     my $error_ref   = shift ;
     my $options_ref = shift ;
 
-    my $timeout = $DEFAULT_TIMER ;
+    my $timeout     = $DEFAULT_TIMER ;
     my %children    = () ;
     my $i_am        = (caller(0))[3];
     my $num_errs    = 0 ;
@@ -165,6 +165,12 @@ sub run_command_wait {
         dprint( "${i_am}: got an options hash" ) ;
         # sleep timer
         my $val = ${$options_ref}{ 'timeout' } ;
+        if ( defined( $val ) and ( $val =~ /^\d+$/ )) {
+            $timeout = $val ;
+        }
+
+        # backward compatibility - used to be 'alarm' and not 'timeout'
+        $val = ${$options_ref}{ 'alarm' } ;
         if ( defined( $val ) and ( $val =~ /^\d+$/ )) {
             $timeout = $val ;
         }

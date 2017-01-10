@@ -10,8 +10,8 @@ my @output = () ;
 my @errors = () ;
 my $command = "sleep 25" ;
 my %options = (
-    'alarm'  => 3,   
-    'stderr' => $STDIN_AND_STDOUT_SEPARATE,
+    'timeout'  => 3,   
+    'stderr'   => $STDIN_AND_STDOUT_SEPARATE,
 ) ;
 
 Moxad::Rcommand::set_debug(1) ;     # turn on debugging

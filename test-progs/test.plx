@@ -16,7 +16,7 @@ if ( not defined( $command )) {
 }
 
 my %options = (
-    'alarm'     => 3,   
+    'timeout'   => 3,   
     'stderr'    => 1,
 ) ;
 
