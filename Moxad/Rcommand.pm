@@ -129,8 +129,8 @@ sub run_command {
 #   2:  reference to array of output (both stdout and stderr combined)
 #   3:  reference to array of errors
 #   4:  optional reference to options hash
-#           alarm = number
-#           stderr = undef | 0 | 1 | 2    - see run_command() action
+#           timeout = number
+#           stderr  = undef | 0 | 1 | 2    - see run_command() action
 # Returns (parent):
 #   number of lines sent to stderr
 # Globals:
@@ -142,7 +142,7 @@ sub run_command_wait {
     my $error_ref   = shift ;
     my $options_ref = shift ;
 
-    my $alarm = $DEFAULT_TIMER ;
+    my $timeout = $DEFAULT_TIMER ;
     my %children    = () ;
     my $i_am        = (caller(0))[3];
     my $num_errs    = 0 ;
@@ -164,9 +164,9 @@ sub run_command_wait {
     if ( defined( $options_ref ) and ( ref( $options_ref ) eq "HASH" )) {
         dprint( "${i_am}: got an options hash" ) ;
         # sleep timer
-        my $val = ${$options_ref}{ 'alarm' } ;
+        my $val = ${$options_ref}{ 'timeout' } ;
         if ( defined( $val ) and ( $val =~ /^\d+$/ )) {
-            $alarm = $val ;
+            $timeout = $val ;
         }
 
         # how to handle stderr
@@ -178,7 +178,7 @@ sub run_command_wait {
             dprint( "${i_am}: stderr value set to $val" ) ;
         }
     }
-    dprint( "${i_am}: alarm timer set to $alarm seconds" ) ;
+    dprint( "${i_am}: alarm timer set to $timeout seconds" ) ;
     
     # set up a pipe
     if ( ! pipe( READER, WRITER )) {
@@ -212,7 +212,7 @@ sub run_command_wait {
         eval {
             # set up our timeout
             local $SIG{ALRM} = sub { die "alarm\n" };  # \n required
-            alarm( $alarm ) ;
+            alarm( $timeout ) ;
 
             # anything that comes back should be tagged
             while ( my $line = <READER> ) {
@@ -248,7 +248,7 @@ sub run_command_wait {
             }
 
             # timed out
-            my $msg = "Got a timeout after $alarm seconds for PID $child." ;
+            my $msg = "Got a timeout after $timeout seconds for PID $child." ;
             dprint( "${i_am}: ${msg}" ) ;
             push( @{$error_ref}, "$i_am: $msg" ) ;
             $num_errs++ ;
@@ -426,8 +426,8 @@ run a shell command with a timer to stop(kill) the command.
  $num_errs = Moxad::Rcommand::run_command_wait( $command, \@stdout, \@stderr, \%options ) ;
 
 where \%options has the following options:
-    alarm = number (default = 30 seconds)
-    stderr = undef | 0 | 1 | 2 - see $action for run_command()
+    timeout = number (default = 30 seconds)
+    stderr  = undef | 0 | 1 | 2 - see $action for run_command()
 
 and $num_errs is the number of lines that are returned in the @stderr
 array - which only happens if $action is $STDIN_AND_STDOUT_SEPARATE,
@@ -446,8 +446,8 @@ or if some other error occurred.
   my @errors = () ;
   my $command = "sleep 25" ;
   my %options = (
-      'alarm'  => 3,     # seconds
-      'stderr' => $STDIN_AND_STDOUT_SEPARATE,
+      'timeout'  => 3,     # seconds
+      'stderr'   => $STDIN_AND_STDOUT_SEPARATE,
   ) ;
   
   Moxad::Rcommand::set_debug(1) ;     # turn on debugging
