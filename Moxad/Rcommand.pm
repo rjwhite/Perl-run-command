@@ -9,7 +9,7 @@ package Moxad::Rcommand ;
 
 use strict ;
 use warnings ;
-use version ; our $VERSION = qv('0.0.2') ;
+use version ; our $VERSION = qv('0.0.3') ;
 use POSIX ":sys_wait_h" ;
 
 use Exporter ;
@@ -19,7 +19,7 @@ our @ISA = qw( Exporter ) ;
 our @EXPORT = qw( $STDOUT_ONLY $STDIN_AND_STDOUT_TOGETHER
                   $STDIN_AND_STDOUT_SEPARATE ) ;
 our @EXPORT_OK = qw( run_command run_command_wait
-                  set_debug set_debug_fd ) ;
+                  set_debug set_debug_fd dprint ) ;
                   
 
 # we make these available to callers

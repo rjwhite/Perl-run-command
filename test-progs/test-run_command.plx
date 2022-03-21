@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+use lib "/usr/local/Moxad/lib" ;
 use lib "/usr/local/lib" ;
 use Moxad::Rcommand qw( run_command :DEFAULT) ;
 use strict ;

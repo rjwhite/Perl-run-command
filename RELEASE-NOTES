@@ -19,3 +19,8 @@
     - a sub-shell added (within the sub-shell) when stderr and stdout
       are separated.  This is in case the user provides multiple
       commands on the same line such as "echo blah ; date"
+
+0.0.3       Mar 21, 2022
+    - removed OWNER and GROUP to rely only on the parent Makefile.inc
+      (which had changed those entries)
+    - added dprint to @EXPORT_OK

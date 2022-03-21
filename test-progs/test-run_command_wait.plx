@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 # Force an early ALARM termination
 
+use lib "/usr/local/Moxad/lib" ;
 use lib "/usr/local/lib" ;
 use Moxad::Rcommand qw( run_command_wait $STDIN_AND_STDOUT_SEPARATE ) ;
 use strict ;
