@@ -9,7 +9,7 @@ package Moxad::Rcommand ;
 
 use strict ;
 use warnings ;
-use version ; our $VERSION = qv('0.0.3') ;
+use version ; our $VERSION = qv('0.0.3.1') ;
 use POSIX ":sys_wait_h" ;
 
 use Exporter ;

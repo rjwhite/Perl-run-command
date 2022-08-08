@@ -24,3 +24,8 @@
     - removed OWNER and GROUP to rely only on the parent Makefile.inc
       (which had changed those entries)
     - added dprint to @EXPORT_OK
+
+0.0.3.1       Aug 8, 2022
+    - neglected to mention that in version 0.0.3 that 'alarm' had been
+      changed to 'timeout', and that 'alarm' had been retained as well
+      for backward compatibility
